@@ -1,0 +1,32 @@
+name: camera_person_detetction_poc
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  socket_io_client: ^3.1.6
+  flutter_webrtc: ^1.6.1
+  dio: ^5.11.0
+  flutter_riverpod: ^2.6.1
+  injectable: ^3.0.0
+  get_it: ^9.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  injectable_generator: ^3.0.2
+  freezed: ^3.2.5
+  build_runner: ^2.15.1
+
+flutter:
+  uses-material-design: true
