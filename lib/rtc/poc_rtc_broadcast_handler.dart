@@ -117,6 +117,11 @@ class PocRtcBroadcastHandler {
   // Camera is already running.
   // ============================================================
 
+  void listenToSignalingServer() {
+    PocSocketService.instance.onRtcMessage(_onSignal);
+    debugPrint('[POC RTC] Signaling listener registered at startup');
+  }
+
   Future<void> handleMessageForRTC({
     required String cameraId,
   }) async {
@@ -140,11 +145,8 @@ class PocRtcBroadcastHandler {
           'cameraId=$cameraId',
     );
 
-    // Listener MUST exist before establish-rtc.
-    PocSocketService.instance.onRtcMessage(
-      _onSignal,
-    );
-
+    // Listener is already up (registered at startup via listenToSignalingServer).
+    // Just announce ourselves so the server knows our broadcaster session.
     debugPrint(
       '[POC RTC] '
           'Sending establish-rtc',
@@ -190,13 +192,10 @@ class PocRtcBroadcastHandler {
               'ESTABLISH-RTC received',
         );
 
-        // Reference project sequence:
-        //
-        // establish-rtc
-        //      ↓
-        // broadcaster
-        //
-        // Camera is ALREADY running.
+        // Extract cameraId from the incoming message so we have it even
+        // when handleMessageForRTC has not been called yet (startup listener path).
+        _signalingCameraId =
+            data['cameraId']?.toString() ?? _signalingCameraId;
 
         PocSocketService.instance
             .registerBroadcaster();
@@ -205,6 +204,8 @@ class PocRtcBroadcastHandler {
         await _ensureCameraRunning();
 
         // Inform panel that camera is ready.
+        // sendCameraReady will buffer the message if _watcherSentFrom is not
+        // set yet (addWatcher hasn't arrived) and flush it as soon as it does.
         PocSocketService.instance
             .sendCameraReady(
           cameraId:
@@ -1231,21 +1232,20 @@ class PocRtcBroadcastHandler {
         '[POC RTC] No viewers remain',
       );
 
-      // Allow the next OPEN_CAMERA to create
-      // a fresh RTC signaling session.
+      // Reset so the next viewer gets a fresh signaling session.
       _rtcStarted = false;
 
-      // Remove the previous RTC message listener.
-      PocSocketService.instance
-          .removeRtcMessageListener();
+      // Keep the 'message' listener ACTIVE — the next viewer's establish-rtc
+      // must be received immediately without waiting for OPEN_CAMERA.
+      // (Do NOT call removeRtcMessageListener here.)
 
-      // Tell the RTC server to dispose the
-      // previous broadcaster session.
+      // Tell the RTC server to dispose the previous broadcaster session.
+      // The listener re-registers the broadcaster on the next establish-rtc.
       PocSocketService.instance
           .disposeRTCConnection();
 
       debugPrint(
-        '[POC RTC] RTC signaling reset',
+        '[POC RTC] RTC signaling reset — listener kept active',
       );
 
       // Camera must remain alive.

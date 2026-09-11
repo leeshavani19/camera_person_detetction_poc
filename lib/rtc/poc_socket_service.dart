@@ -47,6 +47,9 @@ class PocSocketService {
 
   String? _watcherSentFrom;
 
+  bool _pendingCameraReady = false;
+  String? _pendingCameraId;
+
   String? get currentWatcherId =>
       _currentWatcherId;
 
@@ -226,6 +229,9 @@ class PocSocketService {
             '$stack',
           );
         }
+
+        _rtcHandler ??= PocRtcBroadcastHandler();
+        _rtcHandler!.listenToSignalingServer();
       },
     );
 
@@ -497,6 +503,17 @@ class PocSocketService {
     );
 
     _sendWatchers();
+
+    if (_pendingCameraReady) {
+      _pendingCameraReady = false;
+      final cameraId = _pendingCameraId;
+      _pendingCameraId = null;
+      debugPrint(
+        '[POC SOCKET] '
+            'Flushing buffered camera-ready → cameraId=$cameraId',
+      );
+      sendCameraReady(cameraId: cameraId);
+    }
   }
 
   // ============================================================
@@ -627,13 +644,17 @@ class PocSocketService {
 
     if (destination == null ||
         destination.isEmpty) {
+      _pendingCameraReady = true;
+      _pendingCameraId = cameraId;
       debugPrint(
         '[POC SOCKET] '
-            'camera-ready skipped: '
-            'no destination watcher',
+            'camera-ready buffered — addWatcher not received yet',
       );
       return;
     }
+
+    _pendingCameraReady = false;
+    _pendingCameraId = null;
 
     final payload = {
       'toData': [
